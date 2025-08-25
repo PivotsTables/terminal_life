@@ -46,6 +46,9 @@ def main(stdscr):
                     sim.add_log(f"Verbose LLM: {verbose_llm}")
                 elif ch == '?':
                     show_help = not show_help
+                elif ch == 'g':
+                    renderer.toggle_fancy()
+                    sim.add_log(f"Fancy graphics: {renderer.fancy}")
 
             if not paused:
                 sim.tick(force_conversation=force_convo, verbose_llm=verbose_llm)

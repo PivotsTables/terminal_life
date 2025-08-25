@@ -1,6 +1,6 @@
 import curses
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict
 from src.store.layout import (
     WALL, SHELF, REGISTER, QUEUE, DOOR, FRIDGE, COFFEE, COUNTER,
     PRODUCE, DRINKS, FREEZER, MAGAZINE, TABLE
@@ -17,6 +17,18 @@ class Renderer:
         self.rows = 0
         self.cols = 0
         self.split = PanelSplit(0, 0)
+        # Fancy glyph mapping (logical tile -> displayed glyph)
+        # Internal simulation still uses plain ASCII tokens.
+        self.fancy = True  # toggle to disable fancy glyphs if terminal has issues
+        self.tile_glyphs: Dict[str, str] = {}
+        # Mood glyphs (single width). Fallback to character symbol if missing.
+        self.mood_glyphs = {
+            'Happy': '☺',
+            'Upbeat': '♣',
+            'Neutral': '•',
+            'Flat': '·',
+            'Irritated': '✖'
+        }
 
     def resize(self, rows, cols):
         self.rows = rows
@@ -48,6 +60,37 @@ class Renderer:
             curses.init_pair(22, curses.COLOR_WHITE, -1)   # Neutral
             curses.init_pair(23, curses.COLOR_YELLOW, -1)  # Flat
             curses.init_pair(24, curses.COLOR_RED, -1)     # Irritated
+        # configure glyphs (after resize for flexibility later)
+        self._configure_glyphs()
+
+    def _configure_glyphs(self):
+        if not self.fancy:
+            # fallback = identity (original chars)
+            self.tile_glyphs = {
+                WALL: '#', SHELF: '=', REGISTER: 'R', QUEUE: ':', DOOR: 'D', FRIDGE: 'F',
+                COFFEE: 'C', COUNTER: 'r', PRODUCE: 'p', DRINKS: 'b', FREEZER: 'f', MAGAZINE: 'm', TABLE: 't'
+            }
+            return
+        # Chosen single-width unicode glyphs safe for most macOS terminals
+        self.tile_glyphs = {
+            WALL: '▓',
+            SHELF: '▒',
+            REGISTER: '▩',
+            QUEUE: '·',
+            DOOR: '▣',
+            FRIDGE: '▤',
+            FREEZER: '▥',
+            COFFEE: '¤',
+            COUNTER: '─',
+            PRODUCE: '●',
+            DRINKS: '○',
+            MAGAZINE: '≣',
+            TABLE: '◆'
+        }
+
+    def toggle_fancy(self):
+        self.fancy = not self.fancy
+        self._configure_glyphs()
 
     def render(self, stdscr, show_help=False, paused=False, verbose_llm=False):
         stdscr.erase()
@@ -55,38 +98,38 @@ class Renderer:
         for r, line in enumerate(store_lines[:self.split.top_height]):
             for c, ch in enumerate(line[:self.cols]):
                 attr = curses.A_NORMAL
+                draw_ch = self.tile_glyphs.get(ch, ch)
                 if curses.has_colors():
+                    base_attr = curses.A_NORMAL
                     if ch == WALL:
-                        attr = curses.color_pair(1)
+                        base_attr = curses.color_pair(1)
                     elif ch == SHELF:
-                        attr = curses.color_pair(2)
+                        base_attr = curses.color_pair(2)
                     elif ch == REGISTER:
-                        attr = curses.color_pair(3) | curses.A_BOLD
+                        base_attr = curses.color_pair(3) | curses.A_BOLD
                     elif ch == QUEUE:
-                        attr = curses.color_pair(4)
+                        base_attr = curses.color_pair(4) | curses.A_DIM
                     elif ch == FRIDGE:
-                        attr = curses.color_pair(5)
+                        base_attr = curses.color_pair(5)
                     elif ch == COFFEE:
-                        attr = curses.color_pair(6)
+                        base_attr = curses.color_pair(6) | curses.A_BOLD
                     elif ch == COUNTER:
-                        attr = curses.color_pair(7)
+                        base_attr = curses.color_pair(7)
                     elif ch == DOOR:
-                        attr = curses.color_pair(8) | curses.A_BOLD
+                        base_attr = curses.color_pair(8) | curses.A_BOLD
                     elif ch == PRODUCE:
-                        attr = curses.color_pair(9)
+                        base_attr = curses.color_pair(9)
                     elif ch == DRINKS:
-                        attr = curses.color_pair(10)
+                        base_attr = curses.color_pair(10)
                     elif ch == FREEZER:
-                        attr = curses.color_pair(11)
+                        base_attr = curses.color_pair(11)
                     elif ch == MAGAZINE:
-                        attr = curses.color_pair(12)
+                        base_attr = curses.color_pair(12)
                     elif ch == TABLE:
-                        attr = curses.color_pair(13)
-                    else:
-                        # Characters overlay later; leave empty cells
-                        pass
+                        base_attr = curses.color_pair(13)
+                    attr = base_attr
                 try:
-                    stdscr.addch(r, 0 + c, ch, attr)
+                    stdscr.addch(r, 0 + c, draw_ch, attr)
                 except curses.error:
                     pass
         # Overlay characters with mood-based colors
@@ -107,9 +150,16 @@ class Renderer:
                         pair = 23
                     elif mood == 'Irritated':
                         pair = 24
-                    attr = curses.color_pair(pair) | curses.A_BOLD
+                    style = curses.A_BOLD
+                    # add mood-specific style tweaks
+                    if mood == 'Flat':
+                        style = curses.A_DIM
+                    elif mood == 'Irritated':
+                        style = curses.A_BOLD | curses.A_STANDOUT
+                    attr = curses.color_pair(pair) | style
                     try:
-                        stdscr.addch(y, x, ch.symbol, attr)
+                        disp_symbol = self.mood_glyphs.get(mood, ch.symbol if len(ch.symbol) == 1 else '?')
+                        stdscr.addch(y, x, disp_symbol, attr)
                     except curses.error:
                         pass
 
@@ -147,12 +197,17 @@ class Renderer:
         stdscr.refresh()
 
     def _render_help(self, stdscr):
+        # Build legend dynamically from glyph mapping for clarity
+        def lg(sym, desc):
+            glyph = self.tile_glyphs.get(sym, sym)
+            return f" {glyph} {desc}"
         lines = [
             "Help:",
             " q quit  p pause  c force conversation  l toggle verbose LLM  ? toggle help",
             " Characters move, shop, converse. Bottom shows logs.",
-            " Legend: # wall  = shelf  p produce  b drinks  F fridge  f freezer  C coffee",
-            "          m magazine  R register  r counter  : queue  D door  t table",
+            " Legend:" + lg(WALL, 'wall') + lg(SHELF, 'shelf') + lg(PRODUCE, 'produce') + lg(DRINKS, 'drinks'),
+            "        " + lg(FRIDGE, 'fridge') + lg(FREEZER, 'freezer') + lg(COFFEE, 'coffee') + lg(MAGAZINE, 'magazine'),
+            "        " + lg(REGISTER, 'register') + lg(COUNTER, 'counter') + lg(QUEUE, 'queue') + lg(DOOR, 'door') + lg(TABLE, 'table'),
         ]
         maxw = max(len(l) for l in lines) + 4
         maxh = len(lines) + 2
