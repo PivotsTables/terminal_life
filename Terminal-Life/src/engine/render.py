@@ -1,7 +1,10 @@
 import curses
 from dataclasses import dataclass
 from typing import List
-from src.store.layout import WALL, SHELF, REGISTER, QUEUE, DOOR, FRIDGE, COFFEE, COUNTER
+from src.store.layout import (
+    WALL, SHELF, REGISTER, QUEUE, DOOR, FRIDGE, COFFEE, COUNTER,
+    PRODUCE, DRINKS, FREEZER, MAGAZINE, TABLE
+)
 
 @dataclass
 class PanelSplit:
@@ -34,6 +37,11 @@ class Renderer:
             curses.init_pair(6, curses.COLOR_RED, -1)     # coffee
             curses.init_pair(7, curses.COLOR_BLUE, -1)    # counter lip
             curses.init_pair(8, curses.COLOR_WHITE, curses.COLOR_BLUE)  # door
+            curses.init_pair(9, curses.COLOR_GREEN, -1)   # produce
+            curses.init_pair(10, curses.COLOR_CYAN, -1)   # drinks ambient
+            curses.init_pair(11, curses.COLOR_MAGENTA, -1)# freezer
+            curses.init_pair(12, curses.COLOR_YELLOW, -1) # magazine
+            curses.init_pair(13, curses.COLOR_WHITE, -1)  # table
             # Mood-based character colors
             curses.init_pair(20, curses.COLOR_GREEN, -1)   # Happy
             curses.init_pair(21, curses.COLOR_CYAN, -1)    # Upbeat
@@ -64,6 +72,16 @@ class Renderer:
                         attr = curses.color_pair(7)
                     elif ch == DOOR:
                         attr = curses.color_pair(8) | curses.A_BOLD
+                    elif ch == PRODUCE:
+                        attr = curses.color_pair(9)
+                    elif ch == DRINKS:
+                        attr = curses.color_pair(10)
+                    elif ch == FREEZER:
+                        attr = curses.color_pair(11)
+                    elif ch == MAGAZINE:
+                        attr = curses.color_pair(12)
+                    elif ch == TABLE:
+                        attr = curses.color_pair(13)
                     else:
                         # Characters overlay later; leave empty cells
                         pass
@@ -133,7 +151,8 @@ class Renderer:
             "Help:",
             " q quit  p pause  c force conversation  l toggle verbose LLM  ? toggle help",
             " Characters move, shop, converse. Bottom shows logs.",
-            " Legend: # wall  = shelf  R register  : queue  D door  F fridge  C coffee  _ counter lip",
+            " Legend: # wall  = shelf  p produce  b drinks  F fridge  f freezer  C coffee",
+            "          m magazine  R register  r counter  : queue  D door  t table",
         ]
         maxw = max(len(l) for l in lines) + 4
         maxh = len(lines) + 2

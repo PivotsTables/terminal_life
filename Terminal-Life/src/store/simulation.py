@@ -135,13 +135,28 @@ class StoreSimulation:
     def _situational_context(self, a: Character, b: Character):
         tile_a = self._tile_at(a.pos)
         tile_b = self._tile_at(b.pos)
-        if tile_a == '=' or tile_b == '=':
-            return "near a shelf with assorted snacks"
-        if tile_a == 'R' or tile_b == 'R':
+        focused = {tile_a, tile_b}
+        if '=' in focused:
+            return "by snack shelves"
+        if 'p' in focused:
+            return "in the produce section"
+        if 'b' in focused:
+            return "near the ambient drink racks"
+        if 'F' in focused:
+            return "at the refrigerated coolers"
+        if 'f' in focused:
+            return "by the freezer chest"
+        if 'C' in focused:
+            return "at the coffee station"
+        if 'm' in focused:
+            return "near the magazine rack"
+        if 'R' in focused:
             return "near the register"
-        if tile_a == ':':
+        if ':' in focused:
             return "standing in the checkout line"
-        return "inside the store aisles"
+        if 't' in focused:
+            return "near the small seating tables"
+        return "inside the general aisles"
 
     def _tile_at(self, pos: Position):
         if self.layout.in_bounds(pos.y, pos.x):

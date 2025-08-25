@@ -83,7 +83,12 @@ class DialogueManager:
             'shelf': ['snack brands', 'new product display', 'prices vs last week'],
             'register': ['checkout line speed', 'prices vs last week'],
             'queue': ['checkout line speed', 'energy drinks'],
-            'aisles': ['late-night cravings', 'music in the background', 'coffee aroma']
+            'aisles': ['late-night cravings', 'music in the background', 'coffee aroma'],
+            'produce': ['prices vs last week', 'late-night cravings'],
+            'coffee': ['coffee aroma', 'late-night cravings'],
+            'magazine': ['local sports score', 'music in the background'],
+            'drinks': ['energy drinks', 'prices vs last week'],
+            'freezer': ['late-night cravings', 'prices vs last week']
         }
         bucket = 'aisles'
         if 'register' in situational:
@@ -92,6 +97,16 @@ class DialogueManager:
             bucket = 'shelf'
         elif 'checkout' in situational or 'line' in situational:
             bucket = 'queue'
+        elif 'produce' in situational:
+            bucket = 'produce'
+        elif 'coffee' in situational:
+            bucket = 'coffee'
+        elif 'magazine' in situational:
+            bucket = 'magazine'
+        elif 'drink racks' in situational:
+            bucket = 'drinks'
+        elif 'freezer' in situational:
+            bucket = 'freezer'
         candidates = situ_map.get(bucket, TOPICS)
         # Remove last topic & overweight less used
         weights = []
